@@ -42,14 +42,16 @@ def usage():
 
 # 客户端发送数据
 def client_sender(buffer):
+    #创建TCP套接字
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
+        #连接到目标IP和端口
         client.connect((target, port))
-
+        #如果有数据,发送数据
         if len(buffer):
             client.send(buffer)
-
+        #持续接受数据直到数据接收完毕
         while True:
             recv_len = 1
             response = ""
@@ -61,38 +63,42 @@ def client_sender(buffer):
 
                 if recv_len < 4096:
                     break
-            print response,
+            print response
+            #等待输入
             buffer = raw_input("")
             buffer += "\n"
-
+            #发送输入数据
             client.send(buffer)
     except:
         print "[*] Exception! Exiting."
-        client.close()
+    client.close()
 
 
 # 服务器端监听
 def server_loop():
     global target
-
+    #如果没有目标,接收所有IP
     if not len(target):
         target = "0.0.0.0"
-
+    #创建TCP套接字
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #绑定目标
     server.bind((target, port))
-
+    #设置最大连接数
     server.listen(5)
 
     while True:
         client_socket, addr = server.accept()
-
+        #创建新线程来处理客户端
         client_thread = threading.Thread(target=client_handler, args=(client_socket,))
         client_thread.start()
 
 
 # 执行命令
 def run_command(command):
+    #删除命令末尾的空格
     command = command.rstrip()
+    #发送命令并返回输出
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
     except:
@@ -106,10 +112,12 @@ def client_handler(client_socket):
     global upload
     global execute
     global command
-
+    
+    #检测上传文件
     if len(upload_destination):
-
+        
         file_buffer = ""
+        #持续接受数据
         while True:
             data = client_socket.recv(1024)
 
@@ -117,7 +125,7 @@ def client_handler(client_socket):
                 break
             else:
                 file_buffer += data
-
+        #保存接收到的数据
         try:
             file_descriptor = open(upload_destination, "wb")
             file_descriptor.write(file_buffer)
@@ -125,11 +133,11 @@ def client_handler(client_socket):
             client_socket.send("Successfully saved file to %s\r\n" % upload_destination)
         except:
             client_socket.send("Failed to save file to %s\r\n" % upload_destination)
-
+        #如果有命令,执行命令
         if len(execute):
             output = run_command(execute)
             client_socket.send(output)
-
+        #创建新的shell
         if command:
             while True:
                 client_socket.send("<BHP:#> ")
